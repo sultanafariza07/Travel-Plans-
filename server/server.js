@@ -1,21 +1,29 @@
+// ================= LOAD ENV FIRST (🔥 MOST IMPORTANT) =================
+require("dotenv").config();
+
+// 🔍 DEBUG (REMOVE LATER)
+console.log("CLIENT ID:", process.env.GOOGLE_CLIENT_ID);
+
+// ================= IMPORTS =================
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const passport = require("passport");
+
+// Load passport config AFTER env
+require("./config/passport");
+
 const errorHandler = require("./middleware/errorHandler");
 
-// Load environment variables
-dotenv.config();
-
-// Initialize express app
+// ================= INITIALIZE APP =================
 const app = express();
 
-// Security Middleware
+// ================= SECURITY =================
 app.use(helmet());
 
-// Rate limiter - 100 requests per 15 min per IP
+// Rate limiter
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -23,8 +31,9 @@ const limiter = rateLimit({
 });
 app.use("/api/auth", limiter);
 
-// Core Middleware
+// ================= CORS =================
 const allowedOrigins = ["http://localhost:3000"];
+
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
@@ -32,10 +41,10 @@ if (process.env.FRONTEND_URL) {
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
+
       if (
-        allowedOrigins.indexOf(origin) !== -1 ||
+        allowedOrigins.includes(origin) ||
         process.env.NODE_ENV !== "production"
       ) {
         callback(null, true);
@@ -46,9 +55,14 @@ app.use(
     credentials: true,
   }),
 );
+
+// ================= CORE MIDDLEWARE =================
 app.use(express.json());
 
-// Import routes
+// ================= PASSPORT INIT =================
+app.use(passport.initialize());
+
+// ================= ROUTES =================
 const authRoutes = require("./routes/auth");
 const tripRoutes = require("./routes/trips");
 const weatherRoutes = require("./routes/weather");
@@ -58,7 +72,6 @@ const bookingRoutes = require("./routes/booking");
 const destinationRoutes = require("./routes/destinations");
 const packingRoutes = require("./routes/packing");
 
-// Use routes
 app.use("/api/auth", authRoutes);
 app.use("/api/trips", tripRoutes);
 app.use("/api/weather", weatherRoutes);
@@ -68,22 +81,22 @@ app.use("/api/booking", bookingRoutes);
 app.use("/api/destinations", destinationRoutes);
 app.use("/api/packing", packingRoutes);
 
-// Base route
+// ================= BASE ROUTE =================
 app.get("/", (req, res) => {
   res.send("Travel Planner API is running!");
 });
 
-// Global error handler (must be last)
+// ================= ERROR HANDLER =================
 app.use(errorHandler);
 
-// Connect to MongoDB
+// ================= DATABASE =================
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("Could not connect to MongoDB", err));
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ Could not connect to MongoDB", err));
 
-// Start server
+// ================= START SERVER =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
